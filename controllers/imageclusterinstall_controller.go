@@ -140,6 +140,12 @@ func (r *ImageClusterInstallReconciler) Reconcile(ctx context.Context, req ctrl.
 		return res, err
 	}
 
+	// Nothing to do if the installation process has already stopped
+	if installationStopped(ici) {
+		log.Infof("Cluster %s/%s finished installation process, nothing to do", ici.Namespace, ici.Name)
+		return ctrl.Result{}, nil
+	}
+
 	if ici.Spec.ClusterDeploymentRef == nil || ici.Spec.ClusterDeploymentRef.Name == "" {
 		log.Error("ClusterDeploymentRef is unset, not reconciling")
 		return ctrl.Result{}, nil
@@ -263,11 +269,6 @@ func (r *ImageClusterInstallReconciler) Reconcile(ctx context.Context, req ctrl.
 		if err := r.setClusterInstallMetadata(ctx, ici, clusterDeployment.Name); err != nil {
 			log.WithError(err).Error("failed to set ImageClusterInstall metadata")
 			return ctrl.Result{}, err
-		}
-
-		// Don't check timeout or install status if cluster is already installed
-		if clusterDeployment.Spec.Installed {
-			return ctrl.Result{}, nil
 		}
 
 		timedout, err := r.checkClusterTimeout(ctx, log, ici, r.DefaultInstallTimeout)

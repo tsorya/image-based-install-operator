@@ -186,6 +186,11 @@ func (r *ImageClusterInstallReconciler) setClusterTimeoutConditions(ctx context.
 	return r.Status().Patch(ctx, ici, patch)
 }
 
+func installationStopped(ici *v1alpha1.ImageClusterInstall) bool {
+	cond := findCondition(ici.Status.Conditions, hivev1.ClusterInstallStopped)
+	return cond != nil && cond.Status == corev1.ConditionTrue
+}
+
 func (r *ImageClusterInstallReconciler) setClusterInstallingConditions(ctx context.Context, ici *v1alpha1.ImageClusterInstall, message string) error {
 	patch := client.MergeFrom(ici.DeepCopy())
 	setClusterInstallCondition(&ici.Status.Conditions, hivev1.ClusterInstallCondition{
