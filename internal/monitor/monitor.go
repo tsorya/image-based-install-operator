@@ -37,12 +37,17 @@ type GetInstallStatusFunc func(ctx context.Context, log logrus.FieldLogger, c cl
 func GetClusterInstallStatus(ctx context.Context, log logrus.FieldLogger, c client.Client) ClusterInstallStatus {
 	cvAvailable, cvMessage, err := clusterVersionStatus(ctx, log, c)
 	if err != nil {
-		cvMessage = fmt.Sprintf("Failed to check cluster version status: %s", err)
+		log.Info("Failed to check cluster version status: %v", err)
+		// we want to return same message in case of failure in order not to requeue cause of diff in it
+		// and log exact change error
+		cvMessage = "Failed to check cluster version status"
 	}
 
 	nodesReady, nodesMessage, err := nodesStatus(ctx, log, c)
 	if err != nil {
-		nodesMessage = fmt.Sprintf("Failed to check node status: %s", err)
+		// same as for cvMessage
+		log.Info("Failed to check node status: %v", err)
+		nodesMessage = fmt.Sprintf("Failed to check node status")
 	}
 
 	return ClusterInstallStatus{

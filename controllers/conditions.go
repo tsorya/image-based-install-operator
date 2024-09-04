@@ -35,6 +35,12 @@ func setClusterInstallCondition(conditions *[]hivev1.ClusterInstallCondition, ne
 		return
 	}
 
+	if existingCondition != nil &&
+		existingCondition.Status == newCondition.Status &&
+		existingCondition.Reason == newCondition.Reason &&
+		existingCondition.Message == newCondition.Message {
+	}
+
 	if existingCondition.Status != newCondition.Status {
 		existingCondition.Status = newCondition.Status
 		existingCondition.LastTransitionTime = now
@@ -131,6 +137,13 @@ func (r *ImageClusterInstallReconciler) setRequirementsMetCondition(ctx context.
 		Reason:  reason,
 		Message: msg,
 	}
+	currentCondition := findCondition(ici.Status.Conditions, hivev1.ClusterInstallRequirementsMet)
+	if currentCondition != nil &&
+		currentCondition.Status == status &&
+		currentCondition.Reason == reason &&
+		currentCondition.Message == msg {
+		return nil
+	}
 
 	patch := client.MergeFrom(ici.DeepCopy())
 	setClusterInstallCondition(&ici.Status.Conditions, cond)
@@ -184,6 +197,18 @@ func (r *ImageClusterInstallReconciler) setClusterTimeoutConditions(ctx context.
 	})
 
 	return r.Status().Patch(ctx, ici, patch)
+}
+
+func installationStopped(ici *v1alpha1.ImageClusterInstall) bool {
+	cond := findCondition(ici.Status.Conditions, hivev1.ClusterInstallStopped)
+	fmt.Println("77777777777777777777777", cond, cond != nil && cond.Status == corev1.ConditionTrue)
+	return cond != nil && cond.Status == corev1.ConditionTrue
+}
+
+func (r *ImageClusterInstallReconciler) isClusterInstallationFailed(ici *v1alpha1.ImageClusterInstall) bool {
+	return findCondition(ici.Status.Conditions, hivev1.ClusterInstallCompleted).Status == corev1.ConditionFalse &&
+		findCondition(ici.Status.Conditions, hivev1.ClusterInstallStopped).Status == corev1.ConditionTrue &&
+		findCondition(ici.Status.Conditions, hivev1.ClusterInstallFailed).Status == corev1.ConditionTrue
 }
 
 func (r *ImageClusterInstallReconciler) setClusterInstallingConditions(ctx context.Context, ici *v1alpha1.ImageClusterInstall, message string) error {

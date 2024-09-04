@@ -140,6 +140,13 @@ func (r *ImageClusterInstallReconciler) Reconcile(ctx context.Context, req ctrl.
 		return res, err
 	}
 
+	// Nothing to do if the installation process has already stopped
+	if installationStopped(ici) {
+		fmt.Println("AAAAAAAAAAAAAAAAAAAAAAAAAa")
+		log.Infof("Cluster %s/%s finished installation process, nothing to do", ici.Namespace, ici.Name)
+		return ctrl.Result{}, nil
+	}
+
 	if ici.Spec.ClusterDeploymentRef == nil || ici.Spec.ClusterDeploymentRef.Name == "" {
 		log.Error("ClusterDeploymentRef is unset, not reconciling")
 		return ctrl.Result{}, nil
@@ -196,6 +203,13 @@ func (r *ImageClusterInstallReconciler) Reconcile(ctx context.Context, req ctrl.
 		return res, err
 	}
 
+	if updated {
+		if err := r.setClusterInstallData(ctx, ici, clusterDeployment.Name); err != nil {
+			log.WithError(err).Error("failed to set ImageClusterInstall data")
+			return ctrl.Result{}, err
+		}
+	}
+
 	r.labelReferencedObjectsForBackup(ctx, log, ici, clusterDeployment)
 
 	imageUrl, err := url.JoinPath(r.BaseURL, "images", req.Namespace, fmt.Sprintf("%s.iso", req.Name))
@@ -237,12 +251,34 @@ func (r *ImageClusterInstallReconciler) Reconcile(ctx context.Context, req ctrl.
 			}
 		}
 
+		fmt.Println("8888888888888888888888888", ici.Spec.BareMetalHostRef, ici.Status.BareMetalHostRef)
+		if !v1alpha1.BMHRefsMatch(ici.Spec.BareMetalHostRef, ici.Status.BareMetalHostRef) {
+			fmt.Println("321312312312312312312312")
+			ici.Status.BareMetalHostRef = ici.Spec.BareMetalHostRef.DeepCopy()
+			if ici.Status.BootTime.IsZero() {
+				ici.Status.BootTime = metav1.Now()
+			}
+			r.Log.Info("Setting Status.BareMetalHostRef and installation starting condition")
+			setClusterInstallCondition(&ici.Status.Conditions, hivev1.ClusterInstallCondition{
+				Type:    hivev1.ClusterInstallRequirementsMet,
+				Status:  corev1.ConditionTrue,
+				Reason:  v1alpha1.InstallInProgressReason,
+				Message: v1alpha1.InstallInProgressMessage,
+			})
+			if err := r.setClusterInstallingConditions(ctx, ici, "Starting cluster installation"); err != nil {
+				log.WithError(err).Error("failed to set installing conditions")
+				return ctrl.Result{}, err
+			}
+		}
+
 		res, err := r.validateSeedReconfigurationWithBMH(ctx, ici, bmh)
 		if err != nil || !res.IsZero() {
 			return res, err
 		}
 
+		fmt.Println("777777777777777777777777777777777777777777777")
 		if err := r.setBMHImage(ctx, bmh, imageUrl); err != nil {
+			fmt.Println("909090909090909090909090")
 			log.WithError(err).Error("failed to set BareMetalHost image")
 			if updateErr := r.setHostConfiguredCondition(ctx, ici, err); updateErr != nil {
 				log.WithError(updateErr).Error("failed to update ImageClusterInstall status")
@@ -250,26 +286,8 @@ func (r *ImageClusterInstallReconciler) Reconcile(ctx context.Context, req ctrl.
 			return ctrl.Result{}, err
 		}
 
-		patch := client.MergeFrom(ici.DeepCopy())
-		ici.Status.BareMetalHostRef = ici.Spec.BareMetalHostRef.DeepCopy()
-		if ici.Status.BootTime.IsZero() {
-			ici.Status.BootTime = metav1.Now()
-		}
-		if err := r.Status().Patch(ctx, ici, patch); err != nil {
-			log.WithError(err).Error("failed to set Status.BareMetalHostRef")
-			return ctrl.Result{}, err
-		}
 
-		if err := r.setClusterInstallMetadata(ctx, ici, clusterDeployment.Name); err != nil {
-			log.WithError(err).Error("failed to set ImageClusterInstall metadata")
-			return ctrl.Result{}, err
-		}
-
-		// Don't check timeout or install status if cluster is already installed
-		if clusterDeployment.Spec.Installed {
-			return ctrl.Result{}, nil
-		}
-
+	}
 		timedout, err := r.checkClusterTimeout(ctx, log, ici, r.DefaultInstallTimeout)
 		if err != nil {
 			log.WithError(err).Error("failed to check for install timeout")
@@ -440,6 +458,8 @@ func (r *ImageClusterInstallReconciler) spokeClient(ctx context.Context, ici *v1
 	if err != nil {
 		return nil, fmt.Errorf("failed to get restconfig for kube client: %w", err)
 	}
+	// we are setting a timeout for the spoke client to avoid blocking the controller
+	restConfig.Timeout = 10 * time.Second
 
 	var schemes = runtime.NewScheme()
 	utilruntime.Must(corev1.AddToScheme(schemes))
@@ -1042,7 +1062,7 @@ func (r *ImageClusterInstallReconciler) writeImageDigestSourceToFile(imageDigest
 	return nil
 }
 
-func (r *ImageClusterInstallReconciler) setClusterInstallMetadata(ctx context.Context, ici *v1alpha1.ImageClusterInstall, clusterDeploymentName string) error {
+func (r *ImageClusterInstallReconciler) setClusterInstallData(ctx context.Context, ici *v1alpha1.ImageClusterInstall, clusterDeploymentName string) error {
 	clusterInfoFilePath, err := r.clusterInfoFilePath(ici)
 	if err != nil {
 		return err
@@ -1059,7 +1079,6 @@ func (r *ImageClusterInstallReconciler) setClusterInstallMetadata(ctx context.Co
 		ici.Spec.ClusterMetadata.InfraID == clusterInfo.InfraID &&
 		ici.Spec.ClusterMetadata.AdminKubeconfigSecretRef.Name == kubeconfigSecret &&
 		ici.Spec.ClusterMetadata.AdminPasswordSecretRef.Name == kubeadminPasswordSecret {
-
 		return nil
 	}
 
@@ -1075,6 +1094,7 @@ func (r *ImageClusterInstallReconciler) setClusterInstallMetadata(ctx context.Co
 		},
 	}
 
+	r.Log.Info("Setting cluster metadata for ImageClusterInstall")
 	return r.Patch(ctx, ici, patch)
 }
 

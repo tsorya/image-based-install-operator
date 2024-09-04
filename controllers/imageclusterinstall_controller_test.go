@@ -562,9 +562,8 @@ var _ = Describe("Reconcile", func() {
 			Namespace: clusterInstallNamespace,
 			Name:      clusterInstallName,
 		}
-		res, err := r.Reconcile(ctx, ctrl.Request{NamespacedName: key})
+		_, err := r.Reconcile(ctx, ctrl.Request{NamespacedName: key})
 		Expect(err).NotTo(HaveOccurred())
-		Expect(res).To(Equal(ctrl.Result{}))
 
 		content, err := os.ReadFile(outputFilePath(clusterConfigDir, "manifest.json"))
 		Expect(err).NotTo(HaveOccurred())
@@ -845,6 +844,10 @@ var _ = Describe("Reconcile", func() {
 		Expect(err).NotTo(HaveOccurred())
 		Expect(res).To(Equal(ctrl.Result{}))
 
+		res, err = r.Reconcile(ctx, req)
+		Expect(err).NotTo(HaveOccurred())
+		Expect(res).To(Equal(ctrl.Result{}))
+
 		key := types.NamespacedName{
 			Namespace: bmh.Namespace,
 			Name:      bmh.Name,
@@ -875,6 +878,10 @@ var _ = Describe("Reconcile", func() {
 			},
 		}
 		res, err := r.Reconcile(ctx, req)
+		Expect(err).NotTo(HaveOccurred())
+		Expect(res).To(Equal(ctrl.Result{}))
+
+		res, err = r.Reconcile(ctx, req)
 		Expect(err).NotTo(HaveOccurred())
 		Expect(res).To(Equal(ctrl.Result{}))
 
@@ -1240,6 +1247,7 @@ var _ = Describe("Reconcile", func() {
 		cond := findCondition(clusterInstall.Status.Conditions, hivev1.ClusterInstallCompleted)
 		Expect(cond).NotTo(BeNil())
 		Expect(cond.Reason).ToNot(Equal(v1alpha1.InstallTimedoutReason))
+		Expect(cond.Status).To(Equal(corev1.ConditionTrue))
 	})
 
 	It("sets the stopped condition to true when the host is missing", func() {
