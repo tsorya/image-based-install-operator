@@ -315,6 +315,7 @@ func (r *ImageClusterInstallReconciler) validateSeedReconfigurationWithBMH(
 		if updateErr := r.setRequirementsMetCondition(ctx, ici, corev1.ConditionFalse, v1alpha1.HostValidationPending, msg); updateErr != nil {
 			r.Log.WithError(updateErr).Error("failed to update ImageClusterInstall status")
 		}
+		r.Log.Info(msg)
 		return ctrl.Result{RequeueAfter: 30 * time.Second}, nil
 	}
 

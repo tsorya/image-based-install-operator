@@ -1285,9 +1285,9 @@ var _ = Describe("Reconcile", func() {
 		Expect(res).To(Equal(ctrl.Result{}))
 
 		Expect(c.Get(ctx, key, clusterInstall)).To(Succeed())
-		cond := findCondition(clusterInstall.Status.Conditions, hivev1.ClusterInstallStopped)
+		cond := findCondition(clusterInstall.Status.Conditions, hivev1.ClusterInstallRequirementsMet)
 		Expect(cond).NotTo(BeNil())
-		Expect(cond.Status).To(Equal(corev1.ConditionTrue))
+		Expect(cond.Status).To(Equal(corev1.ConditionFalse))
 		Expect(cond.Reason).To(Equal(v1alpha1.HostConfiguraionFailedReason))
 	})
 
