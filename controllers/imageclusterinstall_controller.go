@@ -35,6 +35,7 @@ import (
 	_ "crypto/sha256"
 	_ "crypto/sha512"
 
+	"github.com/samber/lo"
 	"github.com/sirupsen/logrus"
 	"golang.org/x/mod/sumdb/dirhash"
 	"gopkg.in/yaml.v3"
@@ -235,9 +236,12 @@ func (r *ImageClusterInstallReconciler) Reconcile(ctx context.Context, req ctrl.
 	}
 
 	if bmh != nil {
-		// in case image data was changed and bmh has image url configured
+		// in case image data was changed, bmh has image url configured and bmh is not provisioning yet,
 		// we should remove image from it in order to invalidate ironic cache
-		if bmh.Spec.Image != nil && updated {
+		if bmh.Spec.Image != nil &&
+			!lo.Contains([]bmh_v1alpha1.ProvisioningState{bmh_v1alpha1.StateProvisioned,
+				bmh_v1alpha1.StateProvisioning}, bmh.Status.Provisioning.State) &&
+			updated {
 			r.Log.Info("Image data was changed, removing image from BareMetalHost")
 			removed, err := r.removeBMHImage(ctx, ici.Spec.BareMetalHostRef)
 			if err != nil || removed {
@@ -272,6 +276,12 @@ func (r *ImageClusterInstallReconciler) Reconcile(ctx context.Context, req ctrl.
 				log.WithError(err).Error("failed to set Status.BareMetalHostRef")
 				return ctrl.Result{}, err
 			}
+			return ctrl.Result{}, nil
+		}
+
+		if bmh.Status.Provisioning.State != bmh_v1alpha1.StateProvisioned {
+			log.Infof("BareMetalHost %s/%s is not provisioned yet, requeueing", bmh.Name, bmh.Namespace)
+			return ctrl.Result{RequeueAfter: 1 * time.Minute}, nil
 		}
 
 		timedout, err := r.checkClusterTimeout(ctx, log, ici, r.DefaultInstallTimeout)
