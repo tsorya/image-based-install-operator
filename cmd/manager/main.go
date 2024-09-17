@@ -170,6 +170,9 @@ func serviceURL(opts *controllers.ImageClusterInstallReconcilerOptions) (string,
 	}
 
 	host := fmt.Sprintf("%s.%s.svc", opts.ServiceName, opts.ServiceNamespace)
+	if opts.ServicePort != "" {
+		host = fmt.Sprintf("%s:%s", host, opts.ServicePort)
+	}
 
 	return (&url.URL{Scheme: opts.ServiceScheme, Host: host}).String(), nil
 }

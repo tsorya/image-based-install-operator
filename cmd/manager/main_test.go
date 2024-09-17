@@ -14,8 +14,8 @@ func TestMain(t *testing.T) {
 	RunSpecs(t, "Main Suite")
 }
 
-var _ = Describe("routeURL", func() {
-	FIt("creates the correct url without a port", func() {
+var _ = Describe("serviceURL", func() {
+	It("creates the correct url without a port", func() {
 		opts := &controllers.ImageClusterInstallReconcilerOptions{
 			ServiceName:      "name",
 			ServiceNamespace: "namespace",
