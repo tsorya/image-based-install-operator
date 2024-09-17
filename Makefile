@@ -117,6 +117,7 @@ deploy-integration-test:
 	oc apply -f ./hack/integration-test/clusterdeployment.yaml
 	oc apply -f ./hack/integration-test/imageclusterinstall.yaml
 	oc apply -f ./hack/integration-test/baremetalhost.yaml
+	oc apply -f ./hack/integration-test/route.yaml
 
 .PHONY: validate-integration-test
 validate-integration-test:

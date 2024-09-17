@@ -17,5 +17,8 @@ if [[ -z "$url" ]]; then
   exit 1
 fi
 
-curl --insecure --output "test.iso" "$url"
+echo "Renaming url to match the new image-based-install-operator route as we can't reach service directly"
+new_url=$(echo "$url" | sed 's|image-based-install-config.image-based-install-operator.svc:8000|images-image-based-install-operator.apps.dev.redhat.com|')
+
+curl --insecure --output "test.iso" "$new_url"
 file "test.iso" | grep -q "ISO 9660 CD-ROM"
