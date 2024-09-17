@@ -37,7 +37,7 @@ spec:
             fieldRef:
               fieldPath: metadata.namespace
         - name: SERVICE_NAME
-          value: image-based-install-operator
+          value: image-based-install-config
         - name: SERVICE_PORT
           value: "8000"
         - name: SERVICE_SCHEME

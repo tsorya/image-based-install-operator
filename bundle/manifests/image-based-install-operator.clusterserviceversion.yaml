@@ -28,7 +28,7 @@ metadata:
         }
       ]
     capabilities: Basic Install
-    createdAt: "2024-09-17T13:21:52Z"
+    createdAt: "2024-09-17T15:23:54Z"
     operators.operatorframework.io/builder: operator-sdk-v1.30.0
     operators.operatorframework.io/project_layout: go.kubebuilder.io/v3
   name: image-based-install-operator.v0.0.1
@@ -177,7 +177,7 @@ spec:
                     fieldRef:
                       fieldPath: metadata.namespace
                 - name: SERVICE_NAME
-                  value: image-based-install-operator
+                  value: image-based-install-config
                 - name: SERVICE_PORT
                   value: "8000"
                 - name: SERVICE_SCHEME
