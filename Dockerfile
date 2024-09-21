@@ -26,6 +26,11 @@ RUN mkdir $DATA_DIR && chmod 775 $DATA_DIR
 WORKDIR /
 COPY --from=builder /opt/app-root/src/build/manager /usr/local/bin/
 COPY --from=builder /opt/app-root/src/build/server /usr/local/bin/
+
+# downstream this can be installed as an RPM
+COPY --from=quay.io/openshift/origin-cli:4.16 /usr/bin/oc /usr/local/bin/
+
+
 USER 65532:65532
 
 ENTRYPOINT ["/usr/local/bin/manager"]

@@ -19,6 +19,7 @@ package main
 import (
 	"flag"
 	"fmt"
+	"github.com/openshift/image-based-install-operator/internal/installer"
 	"net/url"
 	"os"
 	"time"
@@ -41,7 +42,6 @@ import (
 	hivev1 "github.com/openshift/hive/apis/hive/v1"
 	"github.com/openshift/image-based-install-operator/api/v1alpha1"
 	"github.com/openshift/image-based-install-operator/controllers"
-	"github.com/openshift/image-based-install-operator/internal/certs"
 	"github.com/openshift/image-based-install-operator/internal/credentials"
 	"github.com/openshift/image-based-install-operator/internal/monitor"
 	"github.com/sirupsen/logrus"
@@ -117,7 +117,6 @@ func main() {
 	}
 	credentialsManager := credentials.Credentials{
 		Client: mgr.GetClient(),
-		Certs:  certs.KubeConfigCertManager{},
 		Log:    logger,
 		Scheme: mgr.GetScheme(),
 	}
@@ -135,9 +134,9 @@ func main() {
 		Scheme:                       mgr.GetScheme(),
 		Options:                      controllerOptions,
 		BaseURL:                      baseURL,
-		CertManager:                  certs.KubeConfigCertManager{},
 		DefaultInstallTimeout:        time.Hour,
 		GetSpokeClusterInstallStatus: monitor.GetClusterInstallStatus,
+		Installer:                    installer.NewInstaller(),
 	}).SetupWithManager(mgr); err != nil {
 		setupLog.Error(err, "unable to create controller", "controller", "ImageClusterInstall")
 		os.Exit(1)
