@@ -23,6 +23,7 @@ import (
 	"github.com/google/uuid"
 	"github.com/openshift/image-based-install-operator/internal/installer"
 	"github.com/openshift/installer/pkg/ipnet"
+	"sigs.k8s.io/controller-runtime/pkg/controller"
 
 	// These are required for image parsing to work correctly with digest-based pull specs
 	// See: https://github.com/opencontainers/go-digest/blob/v1.0.0/README.md#usage
@@ -585,6 +586,7 @@ func (r *ImageClusterInstallReconciler) SetupWithManager(mgr ctrl.Manager) error
 		return err
 	}
 	return ctrl.NewControllerManagedBy(mgr).
+		WithOptions(controller.Options{MaxConcurrentReconciles: 10}).
 		For(&v1alpha1.ImageClusterInstall{}).
 		Watches(&bmh_v1alpha1.BareMetalHost{}, handler.EnqueueRequestsFromMapFunc(r.mapBMHToICI)).
 		Watches(&hivev1.ClusterDeployment{}, handler.EnqueueRequestsFromMapFunc(r.mapCDToICI)).
@@ -873,17 +875,19 @@ func (r *ImageClusterInstallReconciler) writeInputData(
 	if err != nil {
 		return ctrl.Result{}, err
 	}
-	clusterConfigPath := filepath.Join(filesDir, ClusterConfigDir)
-	if err := os.MkdirAll(clusterConfigPath, 0700); err != nil {
-		return ctrl.Result{}, err
-	}
 
 	locked, lockErr, funcErr := filelock.WithWriteLock(lockDir, func() (err error) {
 
-		if _, err := os.Stat(filepath.Join(clusterConfigPath, IsoName)); err == nil {
+		clusterConfigPath := filepath.Join(filesDir, ClusterConfigDir)
+		if verifyIsoAndAuthExists(clusterConfigPath) {
 			log.Infof("config iso already exists, skipping")
 			// in case image exists we should ensure credentials in case something failed before it
 			return r.ensureCreds(ctx, log, cd, clusterConfigPath)
+		}
+
+		os.RemoveAll(clusterConfigPath)
+		if err := os.MkdirAll(clusterConfigPath, 0700); err != nil {
+			return err
 		}
 
 		psData, err := r.getValidPullSecret(ctx, cd.Spec.PullSecretRef, cd.Namespace)
@@ -1447,4 +1451,21 @@ func convertIDMToIDS(imageDigestMirrors []apicfgv1.ImageDigestMirrors) []install
 		}
 	}
 	return imageDigestSources
+}
+
+func fileExists(path string) bool {
+	_, err := os.Stat(path)
+	return err == nil
+}
+
+func verifyIsoAndAuthExists(clusterConfigPath string) bool {
+	for _, file := range []string{filepath.Join(clusterConfigPath, IsoName),
+		filepath.Join(clusterConfigPath, authDir, kubeAdminFile),
+		filepath.Join(clusterConfigPath, authDir, credentials.Kubeconfig)} {
+		if !fileExists(file) {
+			return false
+		}
+	}
+
+	return true
 }

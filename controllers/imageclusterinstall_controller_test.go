@@ -237,10 +237,15 @@ var _ = Describe("Reconcile", func() {
 
 	installerSuccess := func() {
 		installerMock.EXPECT().CreateInstallationIso(gomock.Any(), gomock.Any(), gomock.Any()).
-			Return(nil).Times(1).Do(func(any, any, any) { os.WriteFile(outputFilePath(ClusterConfigDir, IsoName), []byte("test"), 0644) })
-		Expect(os.MkdirAll(outputFilePath(ClusterConfigDir, authDir), 0700)).To(Succeed())
-		Expect(os.WriteFile(outputFilePath(ClusterConfigDir, authDir, kubeAdminFile), []byte("test"), 0644)).To(Succeed())
-		Expect(os.WriteFile(outputFilePath(ClusterConfigDir, authDir, credentials.Kubeconfig), []byte(kubeconfig), 0644)).To(Succeed())
+			Return(nil).Times(1).Do(func(any, any, any) {
+			os.WriteFile(outputFilePath(ClusterConfigDir, IsoName), []byte("test"), 0644)
+			Expect(os.MkdirAll(outputFilePath(ClusterConfigDir, authDir), 0700)).To(Succeed())
+			Expect(os.WriteFile(outputFilePath(ClusterConfigDir, authDir, kubeAdminFile), []byte("test"), 0644)).To(Succeed())
+			Expect(os.WriteFile(outputFilePath(ClusterConfigDir, authDir, credentials.Kubeconfig), []byte(kubeconfig), 0644)).To(Succeed())
+		})
+		//Expect(os.MkdirAll(outputFilePath(ClusterConfigDir, authDir), 0700)).To(Succeed())
+		//Expect(os.WriteFile(outputFilePath(ClusterConfigDir, authDir, kubeAdminFile), []byte("test"), 0644)).To(Succeed())
+		//Expect(os.WriteFile(outputFilePath(ClusterConfigDir, authDir, credentials.Kubeconfig), []byte(kubeconfig), 0644)).To(Succeed())
 	}
 
 	validateExtraManifestContent := func(file string, data string) {
